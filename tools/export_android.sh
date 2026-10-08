@@ -50,7 +50,11 @@ while true; do
 	sleep 3
 done
 
-# Termina l'istanza headless (non l'editor) se e' rimasta appesa.
+# Termina l'istanza headless (non l'editor) se e' rimasta appesa:
+# kill dell'intero process group creato da setsid + fallback sul pattern.
+kill -- -"$EXPORT_PID" > /dev/null 2>&1 || true
+sleep 2
+kill -9 -- -"$EXPORT_PID" > /dev/null 2>&1 || true
 pkill -f "godot --headless --path $PROJECT" > /dev/null 2>&1 || true
 wait "$EXPORT_PID" 2>/dev/null || true
 
