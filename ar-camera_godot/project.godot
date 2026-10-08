@@ -11,13 +11,24 @@ config_version=5
 [application]
 
 config/name="ARCamera"
+run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
+
+[autoload]
+
+ARCoreInterfaceInstance="*uid://bpklpbvtbajmo"
+ARSession="*res://scripts/ar/ar_session.gd"
 
 [display]
 
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/ARCorePlugin/plugin.cfg")
 
 [physics]
 
@@ -27,3 +38,9 @@ window/stretch/aspect="expand"
 
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+
+[xr]
+
+shaders/enabled=true

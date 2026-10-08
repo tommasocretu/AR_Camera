@@ -1,0 +1,155 @@
+# Workflow to automatically build and release an Android Plugin with GDExtension capabilities
+name: Build ARCore Plugin
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Building for Android (Ubuntu 20.04)
+    runs-on: ubuntu-20.04
+    
+    # Note, to satisfy the asset library we need to make sure our zip files have a root folder
+    # this is why we checkout into repo and build into asset
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        path: repo
+        submodules: "recursive"
+    
+    #- name: Setup Godot build cache
+    # uses: ./repo/godot-cpp/.github/actions/godot-cache-restore # TODO: CREATE THIS
+    # with:
+    # cache-name: godot-cpp-cache
+    # continue-on-error: true
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.x"
+    
+    - name: Setup Java
+      uses: actions/setup-java@v3
+      with:
+        java-version: 17
+        distribution: "adopt"
+    
+    - name: Setup Android NDK
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r23c
+        link-to-sdk: true
+    
+    - name: Install SCons
+      run: |
+        python -m pip install scons==4.0.0
+    
+    - name: Validate Gradle wrapper
+      uses: gradle/wrapper-validation-action@v1
+
+    - name: tree
+      run: tree -L 2 && ls -alh $GITHUB_WORKSPACE/repo/plugin/
+    
+    - name: Create libgodot-cpp Android templates
+      run: |
+        cd $GITHUB_WORKSPACE/repo/godot-cpp
+        scons platform=android target=template_debug arch=arm64 custom_api_file=../thirdparty/godot_cpp_extension_api/extension_api.json
+        scons platform=android target=template_release arch=arm64 custom_api_file=../thirdparty/godot_cpp_extension_api/extension_api.json
+        cd $GITHUB_WORKSPACE
+    
+    - name: Assemble the plugin
+      run: |
+        cd $GITHUB_WORKSPACE/repo
+        ./gradlew assemble
+
+    - name: List files for debugging
+      run: ls -alh $GITHUB_WORKSPACE/repo/plugin/build/outputs/aar
+    
+    - name: Upload build files
+      uses: actions/upload-artifact@v4
+      with:
+        name: arcore-build
+        path: $GITHUB_WORKSPACE/repo/plugin/build/outputs/aar/ARCorePlugin*.aar
+    
+  # This job collects the build output and assembles the final asset (artifact)
+  release:
+    if: github.event.name == 'push' && (github.ref == 'refs/head/master' || startsWith(github.ref, 'refs/tags'))
+    name: Assembling the asset
+    runs-on: ubuntu-20.04
+    needs: build
+  
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          repository: "GodotVR/godot_arcore"
+          path: godot_arcore
+
+      - name: Download all workflow run artifacts
+        uses: actions/download-artifact@v2
+
+      #- name: Copy files to destination
+      #  run: |
+      #    mkdir godot_arcore_plugin
+      #    mkdir godot_arcore_plugin/addons
+      #    mkdir godot_arcore_plugin/android
+      #    mkdir godot_arcore_plugin/android/plugins
+      #    cp -r godot_arcore/demo/addons/ARCorePlugin godot_arcore_plugin/addons
+      #    cp arcore-build/*.aar godot_arcore_plugin/android/plugins/
+      
+      - name: Calculate GIT short ref
+        if: github.ref == 'refs/heads/master'
+        run: |
+          cd $GITHUB_WORKSPACE/repo/godot_arcore
+          echo "GITHUB_SHA_SHORT=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_ENV
+          cd $GITHUB_WORKSPACE
+      
+      - name: Get tag name
+        if: startsWith(github.ref, 'refs/tags')
+        run: |
+          echo "GITHUB_SHA_SHORT=$(echo ${GITHUB_REF##*/})" >> $GITHUB_ENV
+      
+      - name: Clean up extracted files # TODO: Check what to clean here
+        run: |
+          rm -rf arcore-build
+          rm -rf godot_arcore
+          rm -rf .git
+          mv godot_arcore_plugin godot_arcore_${{ env.GITHUB_SHA_SHORT }}
+      
+      - name: Zip asset
+        run: |
+          zip -qq -r godot_arcore.zip .
+      
+      - name: Create and upload asset
+        if: startsWith(github.ref, 'refs/tags')
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "godot_arcore.zip"
+          body: "Godot ARCore has a new release!"
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create release for asset
+        if: github.ref == 'refs/heads/master'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.GITHUB_SHA_SHORT }}
+          release_name: Automatic build for changeset ${{ env.GITHUB_SHA_SHORT }}
+          body: "This is an automated build for changeset ${{ env.GITHUB_SHA_SHORT }}"
+          draft: false
+          prerelease: true
+      - name: Upload asset
+        if: github.ref == 'refs/heads/master'
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./godot_arcore.zip
+          asset_name: godot_arcore.zip
+          asset_content_type: application/zip

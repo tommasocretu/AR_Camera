@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/minigames/place_cube.gd" id="1_place_cube"]
+
+[node name="PlaceCube" type="Node3D"]
+script = ExtResource("1_place_cube")
+
+[node name="Reticle" type="MeshInstance3D" parent="."]
+
+[node name="Ghost" type="MeshInstance3D" parent="."]
+
+[node name="PlacedCubes" type="Node3D" parent="."]
+
+[node name="PlaneVisuals" type="MeshInstance3D" parent="."]
