@@ -51,18 +51,25 @@ ARCore reale.
 ## Export e deploy su Android
 
 ```bash
-mkdir -p ar-camera_godot/build
-flatpak run org.godotengine.Godot --headless --path ar-camera_godot \
-  --install-android-build-template \
-  --export-debug Android "$PWD/ar-camera_godot/build/arcamera-debug.apk"
+tools/export_android.sh
+```
 
+Genera `ar-camera_godot/build/arcamera-debug.apk` (firmato con il keystore di debug,
+installabile su qualunque telefono). Lo script attende la creazione dell'APK e
+termina da solo il processo headless di Godot, che altrimenti puo' restare appeso
+al termine dell'export.
+
+Per installarlo senza cavo: copiare l'APK sul telefono e aprirlo dal gestore file,
+consentendo l'installazione da fonti sconosciute. Con il telefono collegato:
+
+```bash
 ~/Android/Sdk/platform-tools/adb install -r ar-camera_godot/build/arcamera-debug.apk
 ```
 
 Note:
 
-- `--install-android-build-template` serve la prima volta (crea `ar-camera_godot/android/build/`,
-  che e' ignorato da git); si puo' omettere negli export successivi.
+- La prima esecuzione installa il build template (`ar-camera_godot/android/build/`,
+  ignorato da git) e puo' richiedere diversi minuti.
 - Il keystore di debug e' gia' configurato nelle impostazioni dell'editor Godot
   (`~/.var/app/org.godotengine.Godot/data/godot/keystores/debug.keystore`).
 - Su Android il renderer e' forzato a `gl_compatibility` (vedi
