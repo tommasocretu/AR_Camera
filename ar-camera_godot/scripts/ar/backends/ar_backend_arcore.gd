@@ -28,9 +28,15 @@ func start() -> void:
 		push_error("ARCore: autoload ARCoreInterfaceInstance non disponibile")
 		return
 
+	# iface.start() crea la ArSession: va chiamato prima di ogni setter
+	# configure*(), altrimenti il plugin dereferenzia una sessione nulla.
+	iface.start()
+	if not _session_ready():
+		push_error("ARCore: inizializzazione sessione fallita")
+		return
+
 	iface.enable_horizontal_plane_detection(true)
 	iface.enable_vertical_plane_detection(false)
-	iface.start()
 
 
 func stop() -> void:
@@ -50,9 +56,9 @@ func get_tracking_status() -> int:
 
 
 func get_planes() -> Array:
-	var iface := _interface()
-	if iface == null or iface.arcore_interface == null:
+	if not _session_ready():
 		return []
+	var iface := _interface()
 	var planes: Array = []
 	for id in iface.plane_tracker_get_all_plane_ids():
 		planes.append({
@@ -64,9 +70,9 @@ func get_planes() -> Array:
 
 
 func raycast_screen(position: Vector2) -> Dictionary:
-	var iface := _interface()
-	if iface == null or iface.arcore_interface == null:
+	if not _session_ready():
 		return {"hit": false, "transform": Transform3D.IDENTITY}
+	var iface := _interface()
 	var result: Transform3D = iface.screenRayCast(position.x, position.y)
 	# ARCore restituisce una trasformazione con origine zero quando non c'e' hit.
 	var hit := result.origin.length_squared() > 0.0001
@@ -74,13 +80,23 @@ func raycast_screen(position: Vector2) -> Dictionary:
 
 
 func get_camera_feed_id() -> int:
-	var iface := _interface()
-	if iface == null or iface.arcore_interface == null:
+	if not _session_ready():
 		return -1
+	var iface := _interface()
 	var feed: CameraFeed = iface.get_camera_feed()
 	if feed == null:
 		return -1
 	return feed.get_id()
+
+
+## True quando la sessione ARCore e' inizializzata e pronta ad accettare
+## chiamate (raycast, piani, feed camera). Il plugin vendored dereferenzia la
+## sessione senza controlli: mai chiamarlo prima di iface.start().
+func _session_ready() -> bool:
+	var iface := _interface()
+	if iface == null or iface.arcore_interface == null:
+		return false
+	return iface.arcore_interface.is_initialized()
 
 
 func _interface() -> Node:
