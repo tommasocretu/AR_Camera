@@ -24,6 +24,21 @@ File: `plugin/export_scripts_template/ARCoreInterface.gd`
 - `start()` e `get_tracking_status()` sono null-safe;
 - bug fix: `enable_point_cloud_detection()` chiamava `enable_light_estimation()`.
 
+File: `plugin/src/main/java/org/godotengine/plugin/android/arcore/ARCorePlugin.kt`
+
+- patch per il backend marker: `getArCoreAvailability()` e `requestArCoreInstall()`
+  esposti a GDScript; l'installazione di ARCore non è più automatica in
+  `onMainResume` (flag `automaticInstallEnabled`, default `false`). L'app sceglie
+  il backend ARCore solo se il servizio è già installato, altrimenti usa il
+  backend marker senza mostrare il prompt di installazione.
+
+File: `plugin/src/main/AndroidManifest.xml`
+
+- patch per il backend marker: meta-data `com.google.ar.core` da `required` a
+  `optional` e `uses-feature android.hardware.camera.ar` con `required=false`,
+  così l'app resta installabile (e non viene filtrata dallo store) sui device
+  senza "Google Play Services for AR".
+
 File: `gradle/wrapper/gradle-wrapper.properties`
 
 - Gradle portato da 8.9 a 7.6.4: il progetto Gradle usa ancora AGP 7.4.1, che non è

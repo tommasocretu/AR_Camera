@@ -21,6 +21,7 @@ log() { printf '\n==> %s\n' "$*"; }
 fail() { printf 'ERRORE: %s\n' "$*" >&2; exit 1; }
 
 [ -d "$PROJECT/addons/ARCorePlugin" ] || fail "addon ARCore mancante: esegui prima tools/build_arcore.sh"
+[ -d "$PROJECT/addons/MarkerARPlugin" ] || fail "addon MarkerAR mancante: esegui prima tools/build_marker_ar.sh"
 mkdir -p "$PROJECT/build"
 rm -f "$OUT"
 

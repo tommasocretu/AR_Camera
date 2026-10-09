@@ -17,7 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-ARCoreInterfaceInstance="*uid://bpklpbvtbajmo"
+ARCoreInterfaceInstance="*res://addons/ARCorePlugin/ARCoreInterface.gd"
 ARSession="*res://scripts/ar/ar_session.gd"
 
 [display]
@@ -28,7 +28,7 @@ window/handheld/orientation=1
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/ARCorePlugin/plugin.cfg")
+enabled=PackedStringArray("res://addons/ARCorePlugin/plugin.cfg", "res://addons/MarkerARPlugin/plugin.cfg")
 
 [physics]
 

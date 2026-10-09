@@ -29,15 +29,30 @@ func _ready() -> void:
 		return
 	_backend.name = "ARBackend"
 	add_child(_backend)
-	is_device = _backend.get_kind() == ARBackend.Kind.ARCORE
+	is_device = _backend.get_kind() in [ARBackend.Kind.ARCORE, ARBackend.Kind.MARKER]
 
 
 func _create_backend() -> ARBackend:
-	if ClassDB.class_exists("ARCoreInterface") and Engine.has_singleton("ARCorePlugin"):
+	# ARCore solo quando il servizio e' effettivamente installato: sui device
+	# senza "Google Play Services for AR" la detection fallisce e subentra il
+	# backend marker (nessun prompt di installazione automatico).
+	var arcore_plugin: Object = Engine.get_singleton("ARCorePlugin")
+	if ClassDB.class_exists("ARCoreInterface") and arcore_plugin != null and _is_arcore_usable(arcore_plugin):
 		return preload("res://scripts/ar/backends/ar_backend_arcore.gd").new()
+	if Engine.has_singleton("MarkerARPlugin"):
+		return preload("res://scripts/ar/backends/ar_backend_marker.gd").new()
 	if not OS.has_feature("mobile"):
 		return preload("res://scripts/ar/backends/ar_backend_simulated.gd").new()
 	return null
+
+
+## True se il plugin ARCore riporta il servizio come installato. Plugin piu'
+## vecchi senza la patch non espongono il metodo: in quel caso si mantiene il
+## comportamento precedente (backend ARCore).
+func _is_arcore_usable(plugin: Object) -> bool:
+	if not plugin.has_method("getArCoreAvailability"):
+		return true
+	return plugin.getArCoreAvailability() == "supported_installed"
 
 
 func is_available() -> bool:
@@ -117,3 +132,12 @@ func get_camera_feed_id() -> int:
 	if _backend == null:
 		return -1
 	return _backend.get_camera_feed_id()
+
+
+## ID del marker tracciato (solo backend marker), -1 se nessuno/disponibile.
+func get_marker_id() -> int:
+	if _backend == null:
+		return -1
+	if not _backend.has_method("get_marker_id"):
+		return -1
+	return _backend.get_marker_id()

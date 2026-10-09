@@ -6,7 +6,7 @@ extends Node
 ## [ARSession]. Ogni backend concreto (ARCore su device, simulazione su
 ## desktop) implementa i metodi di questa classe.
 
-enum Kind { NONE, ARCORE, SIMULATED }
+enum Kind { NONE, ARCORE, MARKER, SIMULATED }
 
 
 func get_kind() -> Kind:

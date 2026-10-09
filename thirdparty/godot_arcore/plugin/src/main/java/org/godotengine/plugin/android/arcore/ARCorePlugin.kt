@@ -36,6 +36,8 @@ class ARCorePlugin(godot: Godot): GodotPlugin(godot) {
         var arCoreInstalled: Boolean = false
         var arCoreSupported: Boolean = false
         var cameraPermissionGranted : Boolean = false
+        // Vendored patch: install prompt is opt-in (see requestArCoreInstall()).
+        var automaticInstallEnabled: Boolean = false
 
         var session : Session? = null
         private var m_activity: Activity? = null
@@ -75,8 +77,9 @@ class ARCorePlugin(godot: Godot): GodotPlugin(godot) {
                 arCoreSupported = true
             }
             else -> {
+                // Vendored patch: niente Toast per gli stati UNKNOWN_* (transitori
+                // o device senza ARCore): il backend marker copre il caso.
                 Log.d(TAG, "ARCoreApk.Availability: Not SUPPORTED_*")
-                Toast.makeText(activity, "ARCore support can't be determined, AR features probably won't work", Toast.LENGTH_LONG).show()
             }
             // the else branch represents all these (non)-availabilities:
             /*ArCoreApk.Availability.UNKNOWN_CHECKING -> Log.d(TAG, "ARCoreApk.Availability: UNKNOWN_CHECKING")
@@ -99,27 +102,11 @@ class ARCorePlugin(godot: Godot): GodotPlugin(godot) {
         super.onMainResume()
         Log.d(TAG, "onMainResume")
 
-        if(arCoreSupported && !arCoreInstalled) {
-            try {
-                when(ArCoreApk.getInstance().requestInstall(activity, userRequestedInstall)) {
-                    ArCoreApk.InstallStatus.INSTALLED -> {
-                        Log.d(TAG, "ARCore is installed. Requesting camera permission now")
-                        arCoreSupported = true
-                        arCoreInstalled = true
-                    }
-                    ArCoreApk.InstallStatus.INSTALL_REQUESTED -> userRequestedInstall = true
-                }
-            } catch (e: UnavailableUserDeclinedInstallationException) {
-                Toast.makeText(activity, "UnavailableUserDeclinedInstallationException: Please install ARCore to use this app", Toast.LENGTH_LONG).show()
-                Log.d(TAG, "UnavailableUserDeclinedInstallationException: Please install ARCore to use this app")
-                //userRequestedInstall = false
-                // How should the setup flow continue here?
-            } catch (e: UnavailableDeviceNotCompatibleException) {
-                Toast.makeText(activity, "UnavailableDeviceNotCompatibleException: Your device is not compatible with ARCore", Toast.LENGTH_LONG).show()
-                Log.d(TAG, "UnavailableDeviceNotCompatibleException: Your device is not compatible with ARCore")
-                // How should the setup flow continue here?
-                //userRequestedInstall = false
-            }
+        // Vendored patch: l'installazione di ARCore e' opt-in. L'app preferisce
+        // il backend marker quando il servizio manca; GDScript puo' richiedere
+        // l'installazione esplicitamente con requestArCoreInstall().
+        if(automaticInstallEnabled && arCoreSupported && !arCoreInstalled) {
+            requestArCoreInstall()
         }
 
         // Check if the camera permission is already granted or not
@@ -142,6 +129,44 @@ class ARCorePlugin(godot: Godot): GodotPlugin(godot) {
                 surfaceView!!.onResume()
             }
         }*/
+    }
+
+    // Vendored patch: availability of the ARCore service, exposed to GDScript.
+    // The app uses ARCore only when the service is already installed.
+    @UsedByGodot
+    fun getArCoreAvailability(): String {
+        return when(ArCoreApk.getInstance().checkAvailability(activity)) {
+            ArCoreApk.Availability.SUPPORTED_INSTALLED -> "supported_installed"
+            ArCoreApk.Availability.SUPPORTED_NOT_INSTALLED -> "supported_not_installed"
+            ArCoreApk.Availability.SUPPORTED_APK_TOO_OLD -> "supported_apk_too_old"
+            ArCoreApk.Availability.UNSUPPORTED_DEVICE_NOT_CAPABLE -> "unsupported_device_not_capable"
+            else -> "unknown"
+        }
+    }
+
+    // Vendored patch: explicit ARCore installation request.
+    @UsedByGodot
+    fun requestArCoreInstall() {
+        automaticInstallEnabled = true
+        if(!(arCoreSupported && !arCoreInstalled)) {
+            return
+        }
+        try {
+            when(ArCoreApk.getInstance().requestInstall(activity, userRequestedInstall)) {
+                ArCoreApk.InstallStatus.INSTALLED -> {
+                    Log.d(TAG, "ARCore is installed. Requesting camera permission now")
+                    arCoreSupported = true
+                    arCoreInstalled = true
+                }
+                ArCoreApk.InstallStatus.INSTALL_REQUESTED -> userRequestedInstall = true
+            }
+        } catch (e: UnavailableUserDeclinedInstallationException) {
+            Toast.makeText(activity, "UnavailableUserDeclinedInstallationException: Please install ARCore to use this app", Toast.LENGTH_LONG).show()
+            Log.d(TAG, "UnavailableUserDeclinedInstallationException: Please install ARCore to use this app")
+        } catch (e: UnavailableDeviceNotCompatibleException) {
+            Toast.makeText(activity, "UnavailableDeviceNotCompatibleException: Your device is not compatible with ARCore", Toast.LENGTH_LONG).show()
+            Log.d(TAG, "UnavailableDeviceNotCompatibleException: Your device is not compatible with ARCore")
+        }
     }
 
     fun checkCameraPermission(): Boolean {

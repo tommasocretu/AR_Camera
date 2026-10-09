@@ -5,9 +5,12 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Limits app visibility in the Google Play Store to ARCore supported devices
-        (https://developers.google.com/ar/devices). -->
-    <uses-feature android:name="android.hardware.camera.ar" />
+    <!-- App opzionale rispetto ad ARCore: l'app funziona anche senza il
+        servizio (backend marker), quindi non filtrare i device non ARCore
+        e non forzare l'installazione del servizio. -->
+    <uses-feature
+        android:name="android.hardware.camera.ar"
+        android:required="false" />
 
     <queries>
         <package android:name="com.google.ar.core" />
@@ -32,11 +35,12 @@
         - The `android:value` attribute should be the classpath to the plugin
         initializer.
         -->
-        <!-- "AR Required" app, requires "Google Play Services for AR" (ARCore)
-         to be installed, as the app does not include any non-AR features. -->
+        <!-- "AR Optional" app: ARCore non e' richiesto (l'app ha il backend
+         marker come alternativa), quindi non bloccare l'installazione sui
+         device senza "Google Play Services for AR". -->
         <meta-data
             android:name="com.google.ar.core"
-            android:value="required"
+            android:value="optional"
             tools:replace="android:value"/>
 
         <!-- The minimal version code of ARCore APK required for an app using this SDK. -->

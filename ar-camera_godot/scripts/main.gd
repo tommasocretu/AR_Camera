@@ -53,7 +53,11 @@ func _update_hud() -> void:
 	lines.append("backend: %s" % ARSession.get_backend_name())
 	if ARSession.is_available():
 		lines.append("tracking: %s" % ARSession.tracking_status_name(ARSession.get_tracking_status()))
-		lines.append("piani: %d" % ARSession.get_planes().size())
+		if ARSession.get_backend_name().begins_with("Marker"):
+			var marker_id := ARSession.get_marker_id()
+			lines.append("marker: %s" % ("nessuno" if marker_id < 0 else str(marker_id)))
+		else:
+			lines.append("piani: %d" % ARSession.get_planes().size())
 	else:
 		lines.append("ARSession non disponibile")
 	_debug_label.text = "\n".join(lines)
