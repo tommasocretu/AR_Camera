@@ -1,35 +1,35 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://cg7o2mdywhyuk"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://ctoi2htqwj23o" path="res://scripts/main.gd" id="1_main"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
 background_color = Color(0.06, 0.07, 0.09, 1)
 ambient_light_source = 2
 ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 0.5
 ambient_light_sky_contribution = 0.0
+ambient_light_energy = 0.5
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=1556846884]
 script = ExtResource("1_main")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=855772506]
 environment = SubResource("Environment_main")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=131718819]
 transform = Transform3D(0.7839, 0.442961, 0.43507, -0.589591, 0.750733, 0.297964, -0.194635, -0.490087, 0.849666, -0.0265236, 1.21704, -0.0687435)
 light_energy = 0.8
 
-[node name="Origin3D" type="Node3D" parent="."]
+[node name="Origin3D" type="Node3D" parent="." unique_id=1017305174]
 
-[node name="Camera3D" type="Camera3D" parent="Origin3D"]
+[node name="Camera3D" type="Camera3D" parent="Origin3D" unique_id=850351650]
 far = 10.23
 
-[node name="Minigames" type="Node3D" parent="."]
+[node name="Minigames" type="Node3D" parent="." unique_id=2001979391]
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=904996631]
 
-[node name="DebugLabel" type="Label" parent="UI"]
+[node name="DebugLabel" type="Label" parent="UI" unique_id=1644699961]
 offset_left = 24.0
 offset_top = 24.0
 offset_right = 420.0
@@ -38,7 +38,8 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 6
 
-[node name="ResetButton" type="Button" parent="UI"]
+[node name="ResetButton" type="Button" parent="UI" unique_id=2130985721]
+anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -148.0
