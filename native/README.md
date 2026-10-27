@@ -5,8 +5,9 @@ Plugin nativi di proprieta' del progetto (non vendorizzati).
 ## marker_ar
 
 Plugin Android v2 (`MarkerARPlugin`) che implementa il backend AR "marker ArUco"
-senza servizi Google: fotocamera (Camera2), anteprima come feed custom di Godot
-e stima della posa dei marker con OpenCV (`ArucoDetector` + `solvePnP`).
+senza servizi Google: fotocamera (Camera2), frame RGBA per l'anteprima (mostrati
+dal gioco su un quad 3D) e stima della posa dei marker con OpenCV
+(`ArucoDetector` + `solvePnP`).
 
 - Linguaggio: Kotlin; build: Gradle (`tools/build_marker_ar.sh`).
 - Output: `ar-camera_godot/addons/MarkerARPlugin/` (ignorato da git).

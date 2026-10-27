@@ -63,3 +63,9 @@ func attach_to_world(node: Node3D, world_transform: Transform3D) -> void:
 ## -1 se non disponibile.
 func get_camera_feed_id() -> int:
 	return -1
+
+
+## Texture con l'anteprima della fotocamera (solo backend marker). Null se il
+## backend usa un feed nativo o non ha ancora frame.
+func get_preview_texture() -> Texture2D:
+	return null

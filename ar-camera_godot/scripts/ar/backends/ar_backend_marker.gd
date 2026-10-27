@@ -2,9 +2,10 @@ extends ARBackend
 ## Backend marker ArUco, senza servizi Google.
 ##
 ## Usa il plugin Android "MarkerARPlugin" (Kotlin + OpenCV):
-##  - i frame RGBA "upright" del plugin alimentano un CameraFeed custom,
-##    mostrato come sfondo (Environment.background_camera_feed_id), come fa
-##    il backend ARCore;
+##  - i frame RGBA "upright" del plugin alimentano una ImageTexture mostrata
+##    su un quad attaccato alla camera. Il percorso Environment.BG_CAMERA_FEED
+##    su Android GL passa da samplerExternalOES e va bene solo per feed
+##    esterni (ARCore), non per texture RGB;
 ##  - le pose dei marker diventano l'ancora di mondo per i minigiochi.
 ##
 ## Limiti rispetto ad ARCore: nessun rilevamento piani, nessun motion tracking.
@@ -23,7 +24,7 @@ const MARKER_SIZE_METERS := 0.12
 const MARKER_DICTIONARY := "DICT_4X4_50"
 
 var _plugin: Object = null
-var _feed: CameraFeed = null
+var _preview_texture: ImageTexture = null
 var _started := false
 
 var _last_pose := Transform3D.IDENTITY
@@ -59,7 +60,7 @@ func stop() -> void:
 	_started = false
 	if _plugin != null:
 		_plugin.stop()
-	_remove_feed()
+	_preview_texture = null
 
 
 func get_tracking_status() -> int:
@@ -81,12 +82,6 @@ func raycast_screen(_position: Vector2) -> Dictionary:
 	return {"hit": true, "transform": _last_pose}
 
 
-func get_camera_feed_id() -> int:
-	if _feed == null:
-		return -1
-	return _feed.get_id()
-
-
 ## ID del marker attualmente tracciato, -1 se nessuno.
 func get_marker_id() -> int:
 	if _last_marker_id < 0:
@@ -94,6 +89,11 @@ func get_marker_id() -> int:
 	if Time.get_ticks_msec() - _last_detection_msec > MAX_POSE_AGE_MSEC:
 		return -1
 	return _last_marker_id
+
+
+## Texture con l'ultimo frame della fotocamera, usata dal quad di sfondo.
+func get_preview_texture() -> Texture2D:
+	return _preview_texture
 
 
 func _connect_signals() -> void:
@@ -126,8 +126,6 @@ func _on_permission_denied() -> void:
 
 
 func _on_frame(frame: Dictionary) -> void:
-	if _feed == null:
-		_create_feed()
 	var width: int = frame.get("width", 0)
 	var height: int = frame.get("height", 0)
 	var raw: Variant = frame.get("data", null)
@@ -139,25 +137,11 @@ func _on_frame(frame: Dictionary) -> void:
 	if width <= 0 or height <= 0 or data.size() < width * height * 4:
 		return
 	var image := Image.create_from_data(width, height, false, Image.FORMAT_RGBA8, data)
-	_feed.set_rgb_image(image)
+	if _preview_texture == null or _preview_texture.get_width() != width or _preview_texture.get_height() != height:
+		_preview_texture = ImageTexture.create_from_image(image)
+	else:
+		_preview_texture.update(image)
 	_apply_camera_fov(frame)
-
-
-func _create_feed() -> void:
-	_feed = CameraFeed.new()
-	_feed.set_name("MarkerAR")
-	_feed.set_position(CameraFeed.FEED_BACK)
-	CameraServer.add_feed(_feed)
-	# set_rgb_image() aggiorna la texture solo se il feed e' attivo.
-	_feed.feed_is_active = true
-
-
-func _remove_feed() -> void:
-	if _feed == null:
-		return
-	_feed.feed_is_active = false
-	CameraServer.remove_feed(_feed)
-	_feed = null
 
 
 func _on_markers_detected(data: Dictionary) -> void:
