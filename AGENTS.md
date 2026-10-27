@@ -21,7 +21,8 @@ Godot is installed only as a Flatpak (`org.godotengine.Godot`, 4.7.2) — there 
 
 - `tools/build_arcore.sh [--gradle]` — builds the vendored ARCore plugin and fills `ar-camera_godot/addons/ARCorePlugin/`.
 - `tools/build_marker_ar.sh` — builds the marker plugin (Gradle only, no NDK) and fills `ar-camera_godot/addons/MarkerARPlugin/`.
-- `tools/export_android.sh` — exports the debug APK (requires both addons).
+- `tools/export_android.sh` — exports the debug APK (requires both addons) and copies it to `build/arcamera-<version>-debug.apk`.
+- `tools/bump_version.sh X.Y.Z` — sets `config/version` in `project.godot` and the matching Android `version/code` in `export_presets.cfg` (`major*10000 + minor*100 + patch`, never decreasing). Run it before exporting a new build.
 - `tools/generate_aruco_marker.py` — regenerates the printable marker in `ar-camera_godot/assets/markers/` (requires `opencv-python`).
 
 Requirements: Android SDK in `$HOME/Android/Sdk` (`platforms;android-33`, `build-tools;33.0.2`, and `ndk;23.2.8568313` for ARCore), JDK 17 in `$HOME/.local/opt/temurin-17`, python3 for `tools/.venv`. The marker plugin pulls OpenCV from Maven Central (`org.opencv:opencv:4.12.0`) via Gradle; the AAR is injected into the app APK by the plugin's export script.

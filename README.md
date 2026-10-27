@@ -32,6 +32,7 @@ Due backend AR, selezionati a runtime:
 | `native/marker_ar/` | plugin Android marker Kotlin + OpenCV (vedi `native/README.md`) |
 | `tools/build_arcore.sh` | compila il plugin ARCore e popola l'addon del progetto |
 | `tools/build_marker_ar.sh` | compila il plugin marker e popola l'addon del progetto |
+| `tools/bump_version.sh` | aggiorna versione app e `versionCode` Android |
 | `tools/generate_aruco_marker.py` | rigenera il marker ArUco stampabile |
 
 ## Prerequisiti di sviluppo
@@ -90,14 +91,28 @@ a runtime: ARCore se il servizio e' installato, altrimenti il backend marker
 
 ## Export e deploy su Android
 
+La versione dell'app vive in `application/config/version` di
+`ar-camera_godot/project.godot`; `tools/bump_version.sh` la aggiorna insieme al
+`versionCode` di Android in `export_presets.cfg` (schema
+`major*10000 + minor*100 + patch`, mai decrescente):
+
+```bash
+tools/bump_version.sh 1.2.0
+```
+
+Va eseguito prima di ogni build che si vuole distinguere dalle precedenti:
+Impostazioni > App > ARCamera mostra quel numero, e un `versionCode` piu' alto
+permette di installare sopra la versione gia' presente senza disinstallarla.
+
 ```bash
 tools/export_android.sh
 ```
 
 Genera `ar-camera_godot/build/arcamera-debug.apk` (firmato con il keystore di debug,
-installabile su qualunque telefono). Lo script attende la creazione dell'APK e
-termina da solo il processo headless di Godot, che altrimenti puo' restare appeso
-al termine dell'export.
+installabile su qualunque telefono) e una copia con la versione nel nome,
+`ar-camera_godot/build/arcamera-<versione>-debug.apk`. Lo script stampa versione e
+`versionCode` nei log, attende la creazione dell'APK e termina da solo il processo
+headless di Godot, che altrimenti puo' restare appeso al termine dell'export.
 
 Per installarlo senza cavo: copiare l'APK sul telefono e aprirlo dal gestore file,
 consentendo l'installazione da fonti sconosciute. Con il telefono collegato:

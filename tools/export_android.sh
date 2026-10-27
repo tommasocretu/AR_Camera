@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 #
-# Esporta l'APK debug Android in ar-camera_godot/build/arcamera-debug.apk.
+# Esporta l'APK debug Android in ar-camera_godot/build/arcamera-debug.apk
+# e ne lascia una copia con la versione nel nome
+# (ar-camera_godot/build/arcamera-<versione>-debug.apk).
+#
+# La versione si cambia prima, con tools/bump_version.sh.
 #
 # Il processo headless di Godot a volte non si chiude da solo al termine
 # dell'export: questo script attende la creazione dell'APK e poi termina
@@ -17,14 +21,21 @@ OUT="$PROJECT/build/arcamera-debug.apk"
 LOG="$PROJECT/build/export.log"
 TIMEOUT_SECONDS=1800
 
+VERSION="$(sed -n 's/^config\/version="\(.*\)"$/\1/p' "$PROJECT/project.godot" | head -n 1)"
+[ -n "$VERSION" ] || VERSION="0.0.0"
+VERSION_CODE="$(sed -n 's/^version\/code=\([0-9]\+\)$/\1/p' "$PROJECT/export_presets.cfg" | head -n 1)"
+[ -n "$VERSION_CODE" ] || VERSION_CODE="?"
+VERSIONED="$PROJECT/build/arcamera-$VERSION-debug.apk"
+
 log() { printf '\n==> %s\n' "$*"; }
 fail() { printf 'ERRORE: %s\n' "$*" >&2; exit 1; }
 
 [ -d "$PROJECT/addons/ARCorePlugin" ] || fail "addon ARCore mancante: esegui prima tools/build_arcore.sh"
 [ -d "$PROJECT/addons/MarkerARPlugin" ] || fail "addon MarkerAR mancante: esegui prima tools/build_marker_ar.sh"
 mkdir -p "$PROJECT/build"
-rm -f "$OUT"
+rm -f "$OUT" "$VERSIONED"
 
+log "Build ARCamera $VERSION (versionCode $VERSION_CODE)"
 log "Avvio export Android (prima build: puo' richiedere diversi minuti)"
 setsid flatpak run org.godotengine.Godot --headless --path "$PROJECT" \
 	--install-android-build-template \
@@ -62,4 +73,7 @@ wait "$EXPORT_PID" 2>/dev/null || true
 [ -f "$OUT" ] || fail "APK non generato, vedi $LOG"
 unzip -t "$OUT" > /dev/null 2>&1 || fail "APK corrotto: $OUT"
 
+cp -f "$OUT" "$VERSIONED"
+
 log "APK pronto: $OUT"
+log "Copia versionata: $VERSIONED"
