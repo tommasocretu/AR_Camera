@@ -109,11 +109,29 @@ func _update_hud() -> void:
 			lines.append("marker: %s" % ("nessuno" if marker_id < 0 else str(marker_id)))
 			if ARSession.arcore_availability != "":
 				lines.append("arcore: %s" % _arcore_availability_text())
+			_append_marker_debug(lines, marker_id)
 		else:
 			lines.append("piani: %d" % ARSession.get_planes().size())
 	else:
 		lines.append("ARSession non disponibile")
+	lines.append("fps: %d" % Engine.get_frames_per_second())
 	_debug_label.text = "\n".join(lines)
+
+
+func _append_marker_debug(lines: PackedStringArray, marker_id: int) -> void:
+	var stats := ARSession.get_debug_stats()
+	if stats.is_empty():
+		return
+	var size: Vector2i = stats.get("preview_size", Vector2i.ZERO)
+	var preview_fps := float(stats.get("preview_fps", 0.0))
+	lines.append("camera: %dx%d @ %.1f fps" % [size.x, size.y, preview_fps])
+	var hits := int(stats.get("detection_hits", 0))
+	var attempts := int(stats.get("detection_attempts", 0))
+	lines.append("detect: %d/%d" % [hits, attempts])
+	if bool(stats.get("permission_denied", false)):
+		lines.append("permesso fotocamera negato")
+	elif marker_id < 0:
+		lines.append("inquadra il marker (12 cm)")
 
 
 func _arcore_availability_text() -> String:

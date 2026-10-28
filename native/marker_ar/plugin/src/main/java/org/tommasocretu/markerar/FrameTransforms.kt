@@ -18,20 +18,38 @@ internal object FrameTransforms {
 
 	/** Estrae il piano Y come immagine grayscale tightly packed. */
 	fun yPlaneToGray(image: Image, width: Int, height: Int): ByteArray {
-		val yPlane = image.planes[0]
-		val yBuffer = yPlane.buffer
-		val yRowStride = yPlane.rowStride
-		val yPixelStride = yPlane.pixelStride
+		return readPlane(image.planes[0], width, height)
+	}
+
+	/**
+	 * Copia un piano di [Image] in un ByteArray tightly packed, gestendo
+	 * row stride e pixel stride di YUV_420_888.
+	 */
+	private fun readPlane(plane: Image.Plane, width: Int, height: Int): ByteArray {
+		val buffer = plane.buffer
+		val rowStride = plane.rowStride
+		val pixelStride = plane.pixelStride
+		// La posizione iniziale del buffer e' l'inizio del piano: per i piani
+		// U/V interleaved puo' essere diversa da zero.
+		val base = buffer.position()
 		val output = ByteArray(width * height)
-		if (yPixelStride == 1 && yRowStride == width) {
-			yBuffer.get(output, 0, width * height)
-		} else {
-			var offset = 0
-			for (y in 0 until height) {
-				val rowStart = y * yRowStride
-				for (x in 0 until width) {
-					output[offset++] = yBuffer.get(rowStart + x * yPixelStride)
+		if (pixelStride == 1 && rowStride >= width) {
+			if (rowStride == width) {
+				buffer.position(base)
+				buffer.get(output, 0, width * height)
+			} else {
+				for (y in 0 until height) {
+					buffer.position(base + y * rowStride)
+					buffer.get(output, y * width, width)
 				}
+			}
+			return output
+		}
+		var offset = 0
+		for (y in 0 until height) {
+			val rowStart = base + y * rowStride
+			for (x in 0 until width) {
+				output[offset++] = buffer.get(rowStart + x * pixelStride)
 			}
 		}
 		return output
@@ -39,35 +57,24 @@ internal object FrameTransforms {
 
 	/** Converte un frame YUV_420_888 in RGBA8 tightly packed. */
 	fun yuvToRgba(image: Image, width: Int, height: Int): ByteArray {
-		val yPlane = image.planes[0]
-		val uPlane = image.planes[1]
-		val vPlane = image.planes[2]
-
-		val yBuffer = yPlane.buffer
-		val uBuffer = uPlane.buffer
-		val vBuffer = vPlane.buffer
-
-		val yRowStride = yPlane.rowStride
-		val uRowStride = uPlane.rowStride
-		val vRowStride = vPlane.rowStride
-		val yPixelStride = yPlane.pixelStride
-		val uPixelStride = uPlane.pixelStride
-		val vPixelStride = vPlane.pixelStride
+		val chromaWidth = width / 2
+		val chromaHeight = height / 2
+		val yBytes = readPlane(image.planes[0], width, height)
+		val uBytes = readPlane(image.planes[1], chromaWidth, chromaHeight)
+		val vBytes = readPlane(image.planes[2], chromaWidth, chromaHeight)
 
 		val output = ByteArray(width * height * 4)
 		var offset = 0
 
 		for (y in 0 until height) {
-			val yRowStart = y * yRowStride
-			val uRowStart = (y / 2) * uRowStride
-			val vRowStart = (y / 2) * vRowStride
+			val yRow = y * width
+			val uvRow = (y / 2) * chromaWidth
 
 			for (x in 0 until width) {
-				val yVal = yBuffer.get(yRowStart + x * yPixelStride).toInt() and 0xFF
-
-				val uvCol = (x / 2)
-				val uVal = (uBuffer.get(uRowStart + uvCol * uPixelStride).toInt() and 0xFF) - 128
-				val vVal = (vBuffer.get(vRowStart + uvCol * vPixelStride).toInt() and 0xFF) - 128
+				val yVal = yBytes[yRow + x].toInt() and 0xFF
+				val uvCol = x / 2
+				val uVal = (uBytes[uvRow + uvCol].toInt() and 0xFF) - 128
+				val vVal = (vBytes[uvRow + uvCol].toInt() and 0xFF) - 128
 
 				val r = yVal + 1.402f * vVal
 				val g = yVal - 0.34414f * uVal - 0.71414f * vVal

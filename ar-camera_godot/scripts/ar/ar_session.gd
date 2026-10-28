@@ -161,6 +161,13 @@ func get_preview_texture() -> Texture2D:
 	return _backend.get_preview_texture()
 
 
+## Statistiche diagnostiche del backend (FPS preview, detection, ecc.).
+func get_debug_stats() -> Dictionary:
+	if _backend == null or not _backend.has_method("get_debug_stats"):
+		return {}
+	return _backend.get_debug_stats()
+
+
 ## ID del marker tracciato (solo backend marker), -1 se nessuno/disponibile.
 func get_marker_id() -> int:
 	if _backend == null:

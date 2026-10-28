@@ -32,8 +32,8 @@ far = 10.23
 [node name="DebugLabel" type="Label" parent="UI" unique_id=1644699961]
 offset_left = 24.0
 offset_top = 24.0
-offset_right = 420.0
-offset_bottom = 140.0
+offset_right = 520.0
+offset_bottom = 280.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 6

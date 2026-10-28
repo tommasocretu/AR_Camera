@@ -16,6 +16,7 @@ import android.media.ImageReader
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 import android.view.Surface
@@ -51,8 +52,8 @@ internal class MarkerCameraSession(
 
 	companion object {
 		private const val LOG_TAG = "MarkerARPlugin"
-		const val DEFAULT_CAPTURE_WIDTH = 1280
-		const val DEFAULT_CAPTURE_HEIGHT = 720
+		const val DEFAULT_CAPTURE_WIDTH = 960
+		const val DEFAULT_CAPTURE_HEIGHT = 540
 		const val DEFAULT_PREVIEW_WIDTH = 540
 		const val DEFAULT_PREVIEW_HEIGHT = 960
 		const val DEFAULT_MARKER_SIZE = 0.12
@@ -136,6 +137,7 @@ internal class MarkerCameraSession(
 		ensureThread()
 
 		val manager = activity.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+		Log.i(LOG_TAG, "cameras: ${manager.cameraIdList.joinToString()}")
 		val selectedId = cameraId ?: findBackCameraId(manager) ?: run {
 			listener.onError("nessuna fotocamera disponibile")
 			return
@@ -148,6 +150,7 @@ internal class MarkerCameraSession(
 			val size = chooseCaptureSize(characteristics)
 			captureWidth = size.width
 			captureHeight = size.height
+			Log.i(LOG_TAG, "camera=$selectedId capture=${captureWidth}x$captureHeight")
 			computeIntrinsics(characteristics)
 
 			reader = ImageReader.newInstance(captureWidth, captureHeight, ImageFormat.YUV_420_888, 2)
@@ -227,13 +230,19 @@ internal class MarkerCameraSession(
 		}
 		val requested = Size(captureWidth, captureHeight)
 		sizes.firstOrNull { it == requested }?.let { return it }
-		// Preferisce la dimensione >= richiesta piu' piccola, altrimenti la piu' vicina.
-		val bigger = sizes
-			.filter { it.width >= requested.width && it.height >= requested.height }
-			.minByOrNull { it.width * it.height }
-		if (bigger != null) {
-			return bigger
+
+		// Preferisce dimensioni con lo stesso aspect del preview: evita di
+		// deformare l'immagine passando a 4:3 quando 960x540 non c'e'.
+		val requestedAspect = requested.width.toDouble() / requested.height
+		val sameAspect = sizes.filter {
+			abs(it.width.toDouble() / it.height - requestedAspect) < 0.02
 		}
+		sameAspect
+			.filter { it.width <= requested.width && it.height <= requested.height }
+			.maxByOrNull { it.width * it.height }
+			?.let { return it }
+		sameAspect.minByOrNull { it.width * it.height }?.let { return it }
+
 		return sizes.minByOrNull { abs(it.width * it.height - requested.width * requested.height) } ?: requested
 	}
 
@@ -249,8 +258,20 @@ internal class MarkerCameraSession(
 		val focal = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)?.firstOrNull() ?: 0f
 		val physical = characteristics.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
 		if (focal > 0f && physical != null && physical.width > 0f && physical.height > 0f) {
-			fx = focal.toDouble() * captureWidth / physical.width.toDouble()
-			fy = focal.toDouble() * captureHeight / physical.height.toDouble()
+			// Se il capture ha un aspect diverso dal sensore, il sensore
+			// effettivo e' ritagliato: usare l'intera altezza/larghezza fisica
+			// sottostimerebbe la focale (FOV troppo largo).
+			val sensorAspect = physical.width.toDouble() / physical.height
+			val captureAspect = captureWidth.toDouble() / captureHeight
+			var effectiveWidth = physical.width.toDouble()
+			var effectiveHeight = physical.height.toDouble()
+			if (captureAspect > sensorAspect) {
+				effectiveHeight = physical.width.toDouble() / captureAspect
+			} else if (captureAspect < sensorAspect) {
+				effectiveWidth = physical.height.toDouble() * captureAspect
+			}
+			fx = focal.toDouble() * captureWidth / effectiveWidth
+			fy = focal.toDouble() * captureHeight / effectiveHeight
 		} else {
 			// Stima prudente: FOV orizzontale ~60 gradi.
 			fx = (captureWidth / 2.0) / tan(Math.toRadians(30.0))
@@ -350,11 +371,20 @@ internal class MarkerCameraSession(
 		try {
 			frameCounter++
 			val rotation = if (autoUpright) computeUprightRotation() else fixedRotation
+			var previewMs = 0.0
+			var detectMs = 0.0
 			if (frameCounter % previewEvery == 0) {
+				val started = SystemClock.elapsedRealtimeNanos()
 				emitPreviewFrame(image, rotation)
+				previewMs = (SystemClock.elapsedRealtimeNanos() - started) / 1_000_000.0
 			}
 			if (frameCounter % detectEvery == 0) {
+				val started = SystemClock.elapsedRealtimeNanos()
 				emitDetection(image, rotation)
+				detectMs = (SystemClock.elapsedRealtimeNanos() - started) / 1_000_000.0
+			}
+			if (frameCounter % 30 == 0) {
+				Log.d(LOG_TAG, "frame=$frameCounter preview=${previewMs}ms detect=${detectMs}ms")
 			}
 		} catch (e: Throwable) {
 			Log.e(LOG_TAG, "frame processing failed", e)

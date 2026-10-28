@@ -34,7 +34,7 @@ Le trasformazioni dei frame (`FrameTransforms.kt`) sono adattate (MIT) da
 | Chiave | Default | Significato |
 | --- | --- | --- |
 | `camera_id` | prima posteriore | ID della fotocamera |
-| `capture_width` / `capture_height` | 1280 x 720 | risoluzione di cattura (approssimata alla piu' vicina supportata) |
+| `capture_width` / `capture_height` | 960 x 540 | risoluzione di cattura (approssimata alla piu' vicina supportata) |
 | `preview_width` / `preview_height` | 540 x 960 | dimensione del frame di anteprima emesso (scambiata se l'orientamento non combacia) |
 | `preview_every_frames` | 2 | emette 1 frame di anteprima ogni N catture |
 | `detect_every_frames` | 3 | esegue la detection 1 volta ogni N catture |

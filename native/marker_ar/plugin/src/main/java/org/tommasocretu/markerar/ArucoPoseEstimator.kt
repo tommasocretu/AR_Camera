@@ -70,12 +70,19 @@ internal class ArucoPoseEstimator {
 		val resolved = if (DICTIONARIES.containsKey(dictionary)) dictionary else DEFAULT_DICTIONARY_NAME
 		if (resolved != dictionaryName || detector == null) {
 			dictionaryName = resolved
-			detector = ArucoDetector(
-				Objdetect.getPredefinedDictionary(DICTIONARIES.getValue(resolved)),
-				DetectorParameters(),
-			)
+			detector = createDetector(DICTIONARIES.getValue(resolved))
 		}
 		updateObjectPoints()
+	}
+
+	private fun createDetector(dictionaryId: Int): ArucoDetector {
+		val parameters = DetectorParameters()
+		// Rifinitura subpixel degli angoli: posa piu' stabile, costo contenuto.
+		parameters.set_cornerRefinementMethod(Objdetect.CORNER_REFINE_SUBPIX)
+		parameters.set_cornerRefinementWinSize(5)
+		parameters.set_cornerRefinementMaxIterations(30)
+		parameters.set_cornerRefinementMinAccuracy(0.1)
+		return ArucoDetector(Objdetect.getPredefinedDictionary(dictionaryId), parameters)
 	}
 
 	fun setDistortionCoefficients(coefficients: DoubleArray) {
@@ -126,7 +133,30 @@ internal class ArucoPoseEstimator {
 		val poses = ArrayList<GodotPose>(corners.size)
 		for (i in corners.indices) {
 			val imagePoints = MatOfPoint2f(corners[i])
-			val solved = Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, distortion, rvec, tvec)
+			// IPPE_SQUARE e' il solver specifico per marker quadrati (4 punti
+			// complanari) e da' una posa piu' stabile dell'iterativo.
+			var solved = Calib3d.solvePnP(
+				objectPoints,
+				imagePoints,
+				cameraMatrix,
+				distortion,
+				rvec,
+				tvec,
+				false,
+				Calib3d.SOLVEPNP_IPPE_SQUARE,
+			)
+			if (!solved) {
+				solved = Calib3d.solvePnP(
+					objectPoints,
+					imagePoints,
+					cameraMatrix,
+					distortion,
+					rvec,
+					tvec,
+					false,
+					Calib3d.SOLVEPNP_ITERATIVE,
+				)
+			}
 			if (!solved) {
 				continue
 			}

@@ -13,12 +13,12 @@ extends ARBackend
 ## detection recente e' disponibile.
 
 const PLUGIN_NAME := "MarkerARPlugin"
-const MAX_POSE_AGE_MSEC := 700
-const CAPTURE_WIDTH := 1280
-const CAPTURE_HEIGHT := 720
+const MAX_POSE_AGE_MSEC := 1500
+const CAPTURE_WIDTH := 960
+const CAPTURE_HEIGHT := 540
 const PREVIEW_WIDTH := 540
 const PREVIEW_HEIGHT := 960
-const PREVIEW_EVERY_FRAMES := 2
+const PREVIEW_EVERY_FRAMES := 1
 const DETECT_EVERY_FRAMES := 3
 const MARKER_SIZE_METERS := 0.12
 const MARKER_DICTIONARY := "DICT_4X4_50"
@@ -31,6 +31,14 @@ var _last_pose := Transform3D.IDENTITY
 var _last_marker_id := -1
 var _last_detection_msec := -100000
 var _camera_fov_applied := false
+
+var _preview_frames := 0
+var _preview_fps := 0.0
+var _fps_window := 0.0
+var _detection_attempts := 0
+var _detection_hits := 0
+var _preview_size := Vector2i.ZERO
+var _permission_denied := false
 
 
 func get_kind() -> Kind:
@@ -47,11 +55,27 @@ func start() -> void:
 		push_error("Marker: singleton %s non disponibile" % PLUGIN_NAME)
 		return
 	_started = true
+	_preview_frames = 0
+	_preview_fps = 0.0
+	_fps_window = 0.0
+	_detection_attempts = 0
+	_detection_hits = 0
+	_preview_size = Vector2i.ZERO
+	_permission_denied = false
 	_connect_signals()
 	if _plugin.has_camera_permission():
 		_start_camera()
 	else:
 		_plugin.request_camera_permission()
+
+
+func _process(delta: float) -> void:
+	_fps_window += delta
+	if _fps_window < 1.0:
+		return
+	_preview_fps = _preview_frames / _fps_window
+	_preview_frames = 0
+	_fps_window = 0.0
 
 
 func stop() -> void:
@@ -96,6 +120,17 @@ func get_preview_texture() -> Texture2D:
 	return _preview_texture
 
 
+## Statistiche per l'HUD di debug: FPS preview, detection e dimensione frame.
+func get_debug_stats() -> Dictionary:
+	return {
+		"preview_fps": _preview_fps,
+		"preview_size": _preview_size,
+		"detection_attempts": _detection_attempts,
+		"detection_hits": _detection_hits,
+		"permission_denied": _permission_denied,
+	}
+
+
 func _connect_signals() -> void:
 	_plugin.connect("camera_permission_granted", _on_permission_granted)
 	_plugin.connect("camera_permission_denied", _on_permission_denied)
@@ -117,11 +152,13 @@ func _start_camera() -> void:
 
 
 func _on_permission_granted() -> void:
+	_permission_denied = false
 	if _started:
 		_start_camera()
 
 
 func _on_permission_denied() -> void:
+	_permission_denied = true
 	push_warning("Marker: permesso fotocamera negato")
 
 
@@ -136,6 +173,8 @@ func _on_frame(frame: Dictionary) -> void:
 		data = PackedByteArray(raw)
 	if width <= 0 or height <= 0 or data.size() < width * height * 4:
 		return
+	_preview_frames += 1
+	_preview_size = Vector2i(width, height)
 	var image := Image.create_from_data(width, height, false, Image.FORMAT_RGBA8, data)
 	if _preview_texture == null or _preview_texture.get_width() != width or _preview_texture.get_height() != height:
 		_preview_texture = ImageTexture.create_from_image(image)
@@ -145,6 +184,7 @@ func _on_frame(frame: Dictionary) -> void:
 
 
 func _on_markers_detected(data: Dictionary) -> void:
+	_detection_attempts += 1
 	if int(data.get("count", 0)) <= 0:
 		return
 	var marker_id := int(data.get("id", -1))
@@ -152,6 +192,7 @@ func _on_markers_detected(data: Dictionary) -> void:
 		return
 	if not _apply_pose(data.get("pose", null)):
 		return
+	_detection_hits += 1
 	_last_marker_id = marker_id
 	_last_detection_msec = Time.get_ticks_msec()
 
